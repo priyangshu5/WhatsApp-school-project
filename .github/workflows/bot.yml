@@ -1,29 +1,21 @@
-name: WhatsApp AI Bot
+name: WhatsApp AI Bot (Baileys)
 
 on:
-  # Allows manual trigger from GitHub UI
-  workflow_dispatch:
-  # Runs automatically when code is pushed (excluding public/ commits to avoid loops)
+  workflow_dispatch:          # manual trigger
   push:
     paths-ignore:
-      - 'public/**'
+      - 'docs/**'
       - '**.md'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    # Write permission needed to push QR code back to repo
     permissions:
-      contents: write
+      contents: write         # needed to push QR files back
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Full history is not essential but keeps things clean
-          fetch-depth: 0
-          # This token allows us to push back
-          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,21 +25,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start bot (background) and update QR code
+      - name: Start bot (background) and push QR files
         run: |
-          # Start the bot process in the background
-          node bot/whatsapp.js &
+          # Start the bot in the background
+          node bot/bot.js &
           BOT_PID=$!
 
-          # Wait a moment for the QR code to be generated
-          sleep 15
+          # Give it time to generate QR and update files
+          sleep 20
 
-          # Commit the freshly generated QR files
+          # Commit updated QR image & page back to the repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/qr.png docs/index.html
           git commit -m "Update QR code [skip ci]" || echo "No changes to commit"
           git push
 
-          # Now wait for the bot to finish (it will run until the workflow times out)
+          # Wait for the bot to finish (or until timeout)
           wait $BOT_PID
