@@ -2,12 +2,26 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="15">
-    <title>WhatsApp Bot - Starting...</title>
+    <meta http-equiv="refresh" content="10">
+    <title>WhatsApp Bot - Scan QR</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding-top: 50px; background: #f0f0f0; }
+        img { border: 10px solid white; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
+        h2 { color: #333; }
+        .footer { margin-top: 30px; font-size: 14px; color: #666; }
+    </style>
 </head>
-<body style="font-family: Arial; text-align: center; padding-top: 50px;">
-    <h2>⏳ Bot is starting...</h2>
-    <p>If this message doesn't disappear, the workflow might not have run yet.</p>
-    <p>This page auto-refreshes every 15 seconds.</p>
+<body>
+    <h2>🤖 WhatsApp AI Bot - Scan QR Code</h2>
+    <img id="qr" src="qr.png?t=__TIMESTAMP__" alt="QR Code" style="width:300px; height:300px;">
+    <p>Open WhatsApp on your phone, go to <strong>Settings > Linked Devices</strong> and scan this code.</p>
+    <div class="footer">Page auto-refreshes every 10 seconds. Keep waiting until you see the QR.</div>
+    <script>
+        (function() {
+            var img = document.getElementById('qr');
+            var src = img.src;
+            img.src = src.replace('__TIMESTAMP__', Date.now());
+        })();
+    </script>
 </body>
 </html>
