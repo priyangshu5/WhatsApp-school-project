@@ -15,7 +15,7 @@ const OPENROUTER_API_KEY = "sk-or-v1-3b4e079fdfd2439431f2b8db7b3919c1ae77e5b4b88
 const OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
 
 // ==================== PATHS ====================
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const PUBLIC_DIR = path.join(__dirname, '..', 'docs');
 const QR_IMAGE_PATH = path.join(PUBLIC_DIR, 'qr.png');
 const HTML_PATH = path.join(PUBLIC_DIR, 'index.html');
 
