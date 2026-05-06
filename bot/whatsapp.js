@@ -1,15 +1,21 @@
 /**
- * WhatsApp AI Bot – Improved with stealth puppeteer settings
- * Replace YOUR_OPENROUTER_API_KEY below
+ * WhatsApp AI Bot – Baileys (pure JS) + QR image on Pages
+ * Hardcoded OpenRouter key: change the value below
  */
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    makeInMemoryStore
+} = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
-// ==================== CONFIG ====================
-const OPENROUTER_API_KEY = "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";   // <-- change this!
+// ==================== HARDCODED CONFIG ====================
+const OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY";   // <<< CHANGE THIS
 const OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
 
 // ==================== PATHS (using docs folder) ====================
@@ -17,51 +23,32 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'docs');
 const QR_IMAGE_PATH = path.join(PUBLIC_DIR, 'qr.png');
 const HTML_PATH = path.join(PUBLIC_DIR, 'index.html');
 
+// Make sure docs folder exists
 if (!fs.existsSync(PUBLIC_DIR)) {
     fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 }
 
-// ==================== STEALTH PUPPETEER OPTIONS ====================
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        headless: "new",                         // New headless mode (less detectable)
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--window-size=1920,1080',
-            // Realistic User-Agent so WhatsApp doesn't block us
-            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            // Disable automation flags
-            '--disable-blink-features=AutomationControlled',
-            // Additional flags to avoid detection
-            '--disable-features=ChromeWhatsAppService',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--disable-web-security',
-            '--disable-features=AudioServiceOutOfProcess',
-        ]
-    }
-});
-
-// ==================== QR CODE GENERATION ====================
-client.on('qr', async (qr) => {
-    console.log('QR Code received, generating image...');
+// ==================== QR CODE GENERATOR (saves image) ====================
+async function saveQRImage(qrString) {
     try {
-        await QRCode.toFile(QR_IMAGE_PATH, qr, {
+        await QRCode.toFile(QR_IMAGE_PATH, qrString, {
             type: 'png',
             width: 300,
-            margin: 2
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
         });
-        console.log(`QR saved to ${QR_IMAGE_PATH}`);
+        console.log(`✅ QR saved to ${QR_IMAGE_PATH}`);
     } catch (err) {
         console.error('Failed to save QR:', err);
-        return;
     }
+}
 
-    const htmlContent = `<!DOCTYPE html>
+// ==================== UPDATE THE DISPLAY PAGE ====================
+function updateDisplayPage() {
+    const html = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -88,30 +75,11 @@ client.on('qr', async (qr) => {
     </script>
 </body>
 </html>`;
+    fs.writeFileSync(HTML_PATH, html);
+    console.log('Display page updated.');
+}
 
-    try {
-        fs.writeFileSync(HTML_PATH, htmlContent);
-        console.log(`Display page updated at ${HTML_PATH}`);
-    } catch (err) {
-        console.error('Failed to write HTML:', err);
-    }
-});
-
-// ==================== AUTHENTICATION EVENTS ====================
-client.on('ready', () => {
-    console.log('\n✅ WhatsApp client is ready! Bot is now listening.\n');
-});
-
-client.on('auth_failure', (msg) => {
-    console.error('Authentication failed:', msg);
-});
-
-client.on('disconnected', (reason) => {
-    console.log('Client was disconnected:', reason);
-    // Optionally restart? We won't do automatic restart here.
-});
-
-// ==================== AI RESPONSE ====================
+// ==================== AI RESPONSE FUNCTION ====================
 async function getAIResponse(prompt) {
     try {
         const response = await axios.post(
@@ -124,38 +92,97 @@ async function getAIResponse(prompt) {
                 headers: {
                     'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://github.com/yourusername/your-repo',
+                    'HTTP-Referer': 'https://github.com/priyangshu5/WhatsApp-school-project',
                     'X-Title': 'WhatsApp AI Bot'
                 }
             }
         );
         return response.data.choices[0].message.content;
     } catch (error) {
-        console.error('AI error:', error.response ? error.response.data : error.message);
+        console.error('AI error:', error.response?.data || error.message);
         return "Sorry, I'm having trouble thinking right now. Please try later.";
     }
 }
 
-// ==================== MESSAGE HANDLER ====================
-client.on('message', async (msg) => {
-    if (msg.fromMe) return;
+// ==================== MAIN BOT START ====================
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('session_data');
+    const { version, isLatest } = await fetchLatestBaileysVersion();
 
-    const contact = await msg.getContact();
-    const senderName = contact.pushname || contact.number;
-    console.log(`📩 New message from ${senderName}: "${msg.body}"`);
+    const sock = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,        // we'll handle QR ourselves
+        logger: require('pino')({ level: 'silent' }),
+        browser: ['Ubuntu', 'Chrome', '20.0.04']   // realistic browser info
+    });
 
-    await msg.getChat().then(chat => chat.sendStateTyping());
+    // ---- Handle connection updates (QR + ready) ----
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-    const aiResponse = await getAIResponse(msg.body);
+        // New QR code received
+        if (qr) {
+            console.log('QR Code received, generating image...');
+            await saveQRImage(qr);
+            updateDisplayPage();
+            // The workflow will pick up these files and commit them
+            // (We rely on the GitHub Actions step to git add & commit)
+        }
 
-    try {
-        await msg.reply(aiResponse);
-        console.log(`✅ Replied to ${senderName}`);
-    } catch (err) {
-        console.error('Failed to send reply:', err);
-    }
+        // Connection opened
+        if (connection === 'open') {
+            console.log('✅ WhatsApp AI Bot is online and listening!');
+        }
+
+        // Connection closed – try to restart automatically
+        if (connection === 'close') {
+            const reason = lastDisconnect?.error?.output?.statusCode;
+            console.log('Connection closed, reason:', reason);
+            if (reason !== DisconnectReason.loggedOut) {
+                console.log('Reconnecting...');
+                startBot();   // restart
+            } else {
+                console.log('Logged out. Please re-scan QR.');
+                // Exit so the workflow ends; user can re-trigger
+                process.exit(1);
+            }
+        }
+    });
+
+    // ---- Save credentials whenever they update ----
+    sock.ev.on('creds.update', saveCreds);
+
+    // ---- Incoming messages ----
+    sock.ev.on('messages.upsert', async (m) => {
+        const msg = m.messages[0];
+        if (!msg.message || msg.key.fromMe) return;           // ignore own messages
+        if (msg.key.remoteJid === 'status@broadcast') return; // ignore status updates
+
+        const sender = msg.key.remoteJid;
+        const text = (msg.message.conversation ||
+                      msg.message.extendedTextMessage?.text || '').trim();
+
+        if (!text) return;   // ignore empty messages
+
+        console.log(`📩 From: ${sender.split('@')[0]} => "${text}"`);
+
+        // Show typing indicator (Baileys can't do typing indicator easily, so we skip)
+        // Get AI reply
+        const aiReply = await getAIResponse(text);
+
+        // Send reply
+        try {
+            await sock.sendMessage(sender, { text: aiReply });
+            console.log(`✅ Replied: "${aiReply}"`);
+        } catch (err) {
+            console.error('Failed to send reply:', err);
+        }
+    });
+}
+
+// Start the bot
+startBot().catch(err => {
+    console.error('Bot crashed:', err);
+    process.exit(1);
 });
-
-// ==================== START ====================
-console.log('Starting WhatsApp bot...');
-client.initialize();
