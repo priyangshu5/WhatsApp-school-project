@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # fetch all history so we can rebase
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,21 +27,28 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start bot (background) and push QR files
+      - name: Start bot (background) and update QR files
         run: |
           # Start the bot in the background
           node bot/bot.js &
           BOT_PID=$!
 
-          # Give it time to generate QR and update files
+          # Wait for the QR code to be generated and saved
           sleep 20
 
-          # Commit updated QR image & page back to the repo
+          # Configure git user
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Pull the latest remote changes to avoid push conflict
+          git pull --rebase origin main
+
+          # Stage and commit the updated QR files
           git add docs/qr.png docs/index.html
           git commit -m "Update QR code [skip ci]" || echo "No changes to commit"
-          git push
 
-          # Wait for the bot to finish (or until timeout)
+          # Push back to the repository
+          git push origin main
+
+          # Keep the bot alive (wait for it to finish or until timeout)
           wait $BOT_PID
