@@ -15,7 +15,7 @@ const path = require('path');
 const axios = require('axios');
 
 // ==================== HARDCODED CONFIG ====================
-const OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY";   // <<< CHANGE THIS
+const OPENROUTER_API_KEY = "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";   // <<< CHANGE THIS
 const OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
 
 // ==================== PATHS (using docs folder) ====================
