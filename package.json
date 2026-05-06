@@ -1,0 +1,14 @@
+{
+  "name": "whatsapp-ai-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp AI chatbot running on GitHub Actions + Pages",
+  "main": "bot/whatsapp.js",
+  "scripts": {
+    "start": "node bot/whatsapp.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode": "^1.5.3",
+    "axios": "^1.6.2"
+  }
+}
