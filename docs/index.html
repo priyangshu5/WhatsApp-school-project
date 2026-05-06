@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="10"> <!-- auto-refresh to get latest QR -->
+    <meta http-equiv="refresh" content="10">
     <title>WhatsApp Bot - Scan QR</title>
     <style>
         body { font-family: Arial; text-align: center; padding-top: 50px; background: #f0f0f0; }
@@ -17,11 +17,9 @@
     <p>Open WhatsApp on your phone, go to <strong>Settings > Linked Devices</strong> and scan this code.</p>
     <div class="footer">Page auto-refreshes every 10 seconds. Keep waiting until you see the QR.</div>
     <script>
-        // Cache buster to avoid showing old QR after image update
         (function() {
             var img = document.getElementById('qr');
             var src = img.src;
-            // Replace placeholder with current time once
             img.src = src.replace('__TIMESTAMP__', Date.now());
         })();
     </script>
