@@ -1,15 +1,15 @@
 {
   "name": "whatsapp-ai-bot",
-  "version": "1.0.0",
-  "description": "WhatsApp AI chatbot running on GitHub Actions + Pages",
-  "main": "bot/whatsapp.js",
+  "version": "2.0.0",
+  "description": "Cloud WhatsApp AI chatbot using Baileys + OpenRouter",
+  "main": "bot/bot.js",
   "scripts": {
-    "start": "node bot/whatsapp.js"
+    "start": "node bot/bot.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
+    "@whiskeysockets/baileys": "^6.6.0",
     "qrcode": "^1.5.3",
     "axios": "^1.6.2",
-    "puppeteer": "^21.11.0"
+    "pino": "^8.19.0"
   }
 }
